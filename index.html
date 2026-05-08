@@ -87,6 +87,7 @@
         }
 
         .results-area { display: none; }
+        #htmlCopyBtn { display: none; } /* Masqué par défaut */
 
         footer {
             text-align: center;
@@ -98,11 +99,24 @@
 
         #fileInput { display: none; }
     </style>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e1e26">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js');
+            });
+        }
+    </script>
 </head>
 <body>
 
 <div class="container">
-    <h2>PWA Generator</h2>
+    <h2>PWA Generator Pro</h2>
 
     <div class="section">
         <div class="input-group">
@@ -111,20 +125,20 @@
         </div>
 
         <div class="input-group">
-            <span class="label-tag">ICÔNE (GÉNÉRATEUR 512x512)</span>
+            <span class="label-tag">ICÔNE (GÉNÉRATEUR icon.png)</span>
             <input type="file" id="fileInput" accept="image/*">
             <button id="btnImage" onclick="handleImageClick()">UPLOAD IMAGE</button>
         </div>
 
         <div class="input-group">
             <div class="header-row">
-                <span class="label-tag">CODE HTML</span>
-                <button class="copy-btn" onclick="copyToClipboard('htmlInput')">Copier</button>
+                <span class="label-tag">VOTRE CODE HTML SOURCE</span>
+                <button id="htmlCopyBtn" class="copy-btn" onclick="copyToClipboard('htmlInput')">Copier HTML mis à jour</button>
             </div>
             <textarea id="htmlInput" placeholder="Collez votre code HTML ici..."></textarea>
         </div>
 
-        <button onclick="generateFiles()" style="background: #6200ee; margin-top: 10px;">GENERATE FILES</button>
+        <button onclick="generateFiles()" style="background: #6200ee; margin-top: 10px;">GENERATE FILES & UPDATE HTML</button>
     </div>
 
     <div id="results" class="results-area">
@@ -167,7 +181,6 @@
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = function(event) {
             const img = new Image();
@@ -177,9 +190,8 @@
                 ctx.clearRect(0, 0, 512, 512);
                 ctx.drawImage(img, 0, 0, 512, 512);
                 processedImageData = canvas.toDataURL("image/png");
-                
                 const btn = document.getElementById('btnImage');
-                btn.innerText = "TÉLÉCHARGER icon.png (512x512)";
+                btn.innerText = "TÉLÉCHARGER icon.png";
                 btn.classList.add('ready');
             };
             img.src = event.target.result;
@@ -188,28 +200,53 @@
     });
 
     function downloadIcon() {
-        if (!processedImageData) return;
         const link = document.createElement('a');
-        link.download = 'icon.png'; // Nom exact demandé
+        link.download = 'icon.png';
         link.href = processedImageData;
         link.click();
     }
 
     function generateFiles() {
         const title = document.getElementById('appTitle').value || "App";
+        const htmlField = document.getElementById('htmlInput');
+        let htmlContent = htmlField.value;
+
+        if(!htmlContent.includes('<!DOCTYPE html>')) {
+            alert("Veuillez coller un code HTML complet pour la mise à jour.");
+            return;
+        }
+
+        // 1. Mise à jour du HTML pour inclure les liens PWA
+        const pwaTags = `
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e1e26">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js');
+            });
+        }
+    <\/script>`;
+
+        // On injecte avant la fermeture du </head>
+        if(htmlContent.includes('</head>')) {
+            htmlContent = htmlContent.replace('</head>', pwaTags + '\n</head>');
+        } else {
+            htmlContent = pwaTags + htmlContent;
+        }
+
+        htmlField.value = htmlContent;
+        document.getElementById('htmlCopyBtn').style.display = 'block';
         document.getElementById('results').style.display = 'block';
 
+        // 2. Manifest
         const manifest = {
             "short_name": title,
             "name": title,
-            "icons": [
-                {
-                    "src": "icon.png", // Correspond au fichier téléchargé
-                    "sizes": "512x512",
-                    "type": "image/png",
-                    "purpose": "any maskable"
-                }
-            ],
+            "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }],
             "start_url": "./index.html",
             "display": "standalone",
             "theme_color": "#1e1e26",
@@ -217,13 +254,12 @@
         };
         document.getElementById('manifestOutput').value = JSON.stringify(manifest, null, 4);
 
+        // 3. Service Worker
         const swCode = `const CACHE_NAME = '${title.replace(/\s+/g, '-').toLowerCase()}-v1';
 const assets = ['./', './index.html', './manifest.json', './icon.png'];
-
 self.addEventListener('install', e => {
     e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
 });
-
 self.addEventListener('fetch', e => {
     e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
 });`;
@@ -232,12 +268,9 @@ self.addEventListener('fetch', e => {
 
     function copyToClipboard(id) {
         const copyText = document.getElementById(id);
-        if (!copyText.value && id === 'htmlInput') return; 
-        
         copyText.select();
         copyText.setSelectionRange(0, 99999);
         navigator.clipboard.writeText(copyText.value);
-        
         const btn = event.currentTarget;
         const originalText = btn.innerText;
         btn.innerText = "Copié !";
