@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Studio - Laiche Brahim</title>
+    <style>
+        :root {
+            --bg-color: #1e1e26;
+            --accent-color: #4a90e2;
+            --success-color: #28a745;
+            --text-color: #e0e0e0;
+            --card-bg: #252530;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        h2 { text-align: center; font-weight: 300; color: var(--accent-color); margin-top: 0; }
+        .container { flex: 1; max-width: 600px; margin: 0 auto; width: 100%; }
+
+        .section {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .input-group { margin-bottom: 15px; }
+
+        input[type="text"], textarea {
+            width: 100%;
+            background: #121218;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #00ffc8;
+            padding: 12px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea { height: 120px; font-family: 'Courier New', monospace; resize: vertical; }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent-color);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 5px;
+        }
+
+        button:active { opacity: 0.7; }
+
+        #btnImage.ready { background: var(--success-color); }
+
+        .copy-btn {
+            background: #444;
+            font-size: 0.75em;
+            padding: 4px 8px;
+            width: auto;
+            float: right;
+            margin-top: 0;
+            border-radius: 4px;
+        }
+
+        .label-tag { font-size: 0.85em; color: #888; margin-bottom: 5px; display: block; }
+        
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .results-area { display: none; }
+
+        footer {
+            text-align: center;
+            font-size: 0.75em;
+            color: #555;
+            padding: 20px 0;
+            margin-top: auto;
+        }
+
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>PWA Generator</h2>
+
+    <div class="section">
+        <div class="input-group">
+            <span class="label-tag">TITRE DE L'APPLICATION</span>
+            <input type="text" id="appTitle" placeholder="Ex: Ma Super App">
+        </div>
+
+        <div class="input-group">
+            <span class="label-tag">ICÔNE (GÉNÉRATEUR 512x512)</span>
+            <input type="file" id="fileInput" accept="image/*">
+            <button id="btnImage" onclick="handleImageClick()">UPLOAD IMAGE</button>
+        </div>
+
+        <div class="input-group">
+            <div class="header-row">
+                <span class="label-tag">CODE HTML</span>
+                <button class="copy-btn" onclick="copyToClipboard('htmlInput')">Copier</button>
+            </div>
+            <textarea id="htmlInput" placeholder="Collez votre code HTML ici..."></textarea>
+        </div>
+
+        <button onclick="generateFiles()" style="background: #6200ee; margin-top: 10px;">GENERATE FILES</button>
+    </div>
+
+    <div id="results" class="results-area">
+        <div class="section">
+            <div class="header-row">
+                <span class="label-tag">manifest.json</span>
+                <button class="copy-btn" onclick="copyToClipboard('manifestOutput')">Copier</button>
+            </div>
+            <textarea id="manifestOutput" readonly></textarea>
+        </div>
+
+        <div class="section">
+            <div class="header-row">
+                <span class="label-tag">sw.js (Service Worker)</span>
+                <button class="copy-btn" onclick="copyToClipboard('swOutput')">Copier</button>
+            </div>
+            <textarea id="swOutput" readonly></textarea>
+        </div>
+    </div>
+</div>
+
+<canvas id="canvas512" width="512" height="512" style="display:none;"></canvas>
+
+<footer>
+    Made by Laiche Brahim 2026 Paris
+</footer>
+
+<script>
+    let processedImageData = null;
+
+    function handleImageClick() {
+        const btn = document.getElementById('btnImage');
+        if (btn.classList.contains('ready')) {
+            downloadIcon();
+        } else {
+            document.getElementById('fileInput').click();
+        }
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.getElementById('canvas512');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, 512, 512);
+                ctx.drawImage(img, 0, 0, 512, 512);
+                processedImageData = canvas.toDataURL("image/png");
+                
+                const btn = document.getElementById('btnImage');
+                btn.innerText = "PNG 512 (TÉLÉCHARGER)";
+                btn.classList.add('ready');
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function downloadIcon() {
+        if (!processedImageData) return;
+        const link = document.createElement('a');
+        link.download = 'icon-512x512.png';
+        link.href = processedImageData;
+        link.click();
+    }
+
+    function generateFiles() {
+        const title = document.getElementById('appTitle').value || "My App";
+        document.getElementById('results').style.display = 'block';
+
+        const manifest = {
+            "short_name": title,
+            "name": title,
+            "icons": [
+                {
+                    "src": "icon-512x512.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                }
+            ],
+            "start_url": "./index.html",
+            "display": "standalone",
+            "theme_color": "#1e1e26",
+            "background_color": "#1e1e26"
+        };
+        document.getElementById('manifestOutput').value = JSON.stringify(manifest, null, 4);
+
+        const swCode = `const CACHE_NAME = '${title.replace(/\s+/g, '-').toLowerCase()}-v1';
+const assets = ['./', './index.html', './manifest.json'];
+
+self.addEventListener('install', e => {
+    e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
+});
+
+self.addEventListener('fetch', e => {
+    e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+});`;
+        document.getElementById('swOutput').value = swCode;
+    }
+
+    function copyToClipboard(id) {
+        const copyText = document.getElementById(id);
+        if (!copyText.value) return; 
+        
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value);
+        
+        const btn = event.currentTarget;
+        const originalText = btn.innerText;
+        btn.innerText = "Copié !";
+        btn.style.background = "#28a745";
+        setTimeout(() => { 
+            btn.innerText = originalText; 
+            btn.style.background = "#444";
+        }, 1500);
+    }
+</script>
+
+</body>
+</html>
