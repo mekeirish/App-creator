@@ -74,7 +74,6 @@
             padding: 4px 8px;
             width: auto;
             float: right;
-            margin-top: 0;
             border-radius: 4px;
         }
 
@@ -180,7 +179,7 @@
                 processedImageData = canvas.toDataURL("image/png");
                 
                 const btn = document.getElementById('btnImage');
-                btn.innerText = "PNG 512 (TÉLÉCHARGER)";
+                btn.innerText = "TÉLÉCHARGER icon.png (512x512)";
                 btn.classList.add('ready');
             };
             img.src = event.target.result;
@@ -191,13 +190,13 @@
     function downloadIcon() {
         if (!processedImageData) return;
         const link = document.createElement('a');
-        link.download = 'icon-512x512.png';
+        link.download = 'icon.png'; // Nom exact demandé
         link.href = processedImageData;
         link.click();
     }
 
     function generateFiles() {
-        const title = document.getElementById('appTitle').value || "My App";
+        const title = document.getElementById('appTitle').value || "App";
         document.getElementById('results').style.display = 'block';
 
         const manifest = {
@@ -205,7 +204,7 @@
             "name": title,
             "icons": [
                 {
-                    "src": "icon-512x512.png",
+                    "src": "icon.png", // Correspond au fichier téléchargé
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "any maskable"
@@ -219,7 +218,7 @@
         document.getElementById('manifestOutput').value = JSON.stringify(manifest, null, 4);
 
         const swCode = `const CACHE_NAME = '${title.replace(/\s+/g, '-').toLowerCase()}-v1';
-const assets = ['./', './index.html', './manifest.json'];
+const assets = ['./', './index.html', './manifest.json', './icon.png'];
 
 self.addEventListener('install', e => {
     e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
@@ -233,7 +232,7 @@ self.addEventListener('fetch', e => {
 
     function copyToClipboard(id) {
         const copyText = document.getElementById(id);
-        if (!copyText.value) return; 
+        if (!copyText.value && id === 'htmlInput') return; 
         
         copyText.select();
         copyText.setSelectionRange(0, 99999);
